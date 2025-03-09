@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nevformance - Minecraft Server Analytics</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<header>
+    <h1>Nevformance Analytics</h1>
+    <div class="server-info">
+        <div class="info-item">
+            <span class="label">TPS:</span>
+            <span id="current-tps" class="value">-</span>
+        </div>
+        <div class="info-item">
+            <span class="label">MSPT:</span>
+            <span id="current-mspt" class="value">-</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Memory:</span>
+            <span id="current-memory" class="value">-</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Entities:</span>
+            <span id="current-entities" class="value">-</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Chunks:</span>
+            <span id="current-chunks" class="value">-</span>
+        </div>
+    </div>
+</header>
+
+<div class="controls">
+    <div class="time-range">
+        <button data-range="5m">5m</button>
+        <button data-range="15m">15m</button>
+        <button data-range="30m">30m</button>
+        <button data-range="1h" class="active">1h</button>
+    </div>
+    <div class="refresh-control">
+        <label for="auto-refresh">Auto-refresh:</label>
+        <input type="checkbox" id="auto-refresh" checked>
+        <select id="refresh-interval">
+            <option value="1000">1s</option>
+            <option value="5000" selected>5s</option>
+            <option value="10000">10s</option>
+            <option value="30000">30s</option>
+        </select>
+        <button id="refresh-now">Refresh Now</button>
+    </div>
+</div>
+
+<div class="tab-container">
+    <div class="tabs">
+        <button class="tab-button active" data-tab="overview">Overview</button>
+        <button class="tab-button" data-tab="entities">Entities</button>
+        <button class="tab-button" data-tab="chunks">Chunks & Worlds</button>
+        <button class="tab-button" data-tab="system">System Resources</button>
+        <button class="tab-button" data-tab="analytics">Analytics</button>
+    </div>
+
+    <div class="tab-content active" id="overview-tab">
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <h2>Server Performance</h2>
+                <div class="chart-tabs">
+                    <button data-metric="server.tps" class="active">TPS</button>
+                    <button data-metric="server.tick_time">MSPT</button>
+                </div>
+                <div class="chart">
+                    <canvas id="performance-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h2>Memory Usage</h2>
+                <div class="chart">
+                    <canvas id="memory-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h2>Entities & Chunks</h2>
+                <div class="chart-tabs">
+                    <button data-metric="entities.total" class="active">Entities</button>
+                    <button data-metric="chunks.loaded">Chunks</button>
+                </div>
+                <div class="chart">
+                    <canvas id="entities-chunks-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="entities-tab">
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <h2>Entity Distribution</h2>
+                <div class="chart">
+                    <canvas id="entity-distribution-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h2>Top Entity Types</h2>
+                <div class="chart">
+                    <canvas id="entity-types-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper full-width">
+                <h2>Entity Hotspots</h2>
+                <div class="table-container">
+                    <table id="entity-hotspots-table" class="data-table">
+                        <thead>
+                        <tr>
+                            <th>Dimension</th>
+                            <th>Chunk Position</th>
+                            <th>Entity Count</th>
+                            <th>Details</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="chunks-tab">
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <h2>Chunks by Dimension</h2>
+                <div class="chart">
+                    <canvas id="chunks-by-dimension-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h2>Chunk Load/Unload Rate</h2>
+                <div class="chart">
+                    <canvas id="chunk-rate-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h2>Block Entities</h2>
+                <div class="chart">
+                    <canvas id="block-entities-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper full-width">
+                <h2>Active Chunks</h2>
+                <div class="table-container">
+                    <table id="active-chunks-table" class="data-table">
+                        <thead>
+                        <tr>
+                            <th>Dimension</th>
+                            <th>Chunk Position</th>
+                            <th>Activity Score</th>
+                            <th>Block Entities</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="system-tab">
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <h2>CPU Usage</h2>
+                <div class="chart">
+                    <canvas id="cpu-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h2>Thread Activity</h2>
+                <div class="chart">
+                    <canvas id="threads-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h2>Garbage Collection</h2>
+                <div class="chart">
+                    <canvas id="gc-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h2>Memory Pools</h2>
+                <div class="chart">
+                    <canvas id="memory-pools-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="analytics-tab">
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <h2>Performance Distribution</h2>
+                <div class="chart">
+                    <canvas id="tick-distribution-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h2>Lag Spike Analysis</h2>
+                <div class="chart">
+                    <canvas id="lag-spikes-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-wrapper full-width">
+                <h2>Correlation Analysis</h2>
+                <div class="correlation-controls">
+                    <div>
+                        <label for="metric-x">X Axis:</label>
+                        <select id="metric-x">
+                            <option value="entities.total">Entity Count</option>
+                            <option value="chunks.loaded">Loaded Chunks</option>
+                            <option value="memory.heap.used">Memory Usage</option>
+                            <option value="server.tick_time">MSPT</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="metric-y">Y Axis:</label>
+                        <select id="metric-y">
+                            <option value="server.tick_time">MSPT</option>
+                            <option value="entities.total">Entity Count</option>
+                            <option value="chunks.loaded">Loaded Chunks</option>
+                            <option value="memory.heap.used">Memory Usage</option>
+                        </select>
+                    </div>
+                    <button id="update-correlation">Update</button>
+                </div>
+                <div class="chart">
+                    <canvas id="correlation-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Application Module -->
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>

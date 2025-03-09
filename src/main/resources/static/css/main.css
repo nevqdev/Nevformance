@@ -1,0 +1,325 @@
+/* Nevformance - Main Stylesheet */
+
+/* Reset and Base Styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    line-height: 1.6;
+}
+
+/* Header Styles */
+header {
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+}
+
+header h1 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 24px;
+}
+
+.server-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+}
+
+.info-item {
+    background-color: #f8f9fa;
+    padding: 10px 15px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+}
+
+.info-item .label {
+    font-weight: 600;
+    margin-right: 10px;
+    color: #495057;
+}
+
+.info-item .value {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    color: #2980b9;
+}
+
+/* Controls Section */
+.controls {
+    display: flex;
+    justify-content: space-between;
+    background-color: #ffffff;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.time-range, .refresh-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.controls button, .controls select, .controls input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.controls button {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.controls button:hover {
+    background-color: #e9ecef;
+}
+
+.controls button.active {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Tab Container */
+.tab-container {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.tabs {
+    display: flex;
+    background-color: #f1f3f5;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 15px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    color: #495057;
+}
+
+.tab-button:hover {
+    background-color: #e9ecef;
+}
+
+.tab-button.active {
+    background-color: #ffffff;
+    color: #3498db;
+    border-bottom: 3px solid #3498db;
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+    padding: 20px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Charts Container */
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+}
+
+.chart-wrapper {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.chart-wrapper.full-width {
+    grid-column: 1 / -1;
+}
+
+.chart {
+    height: 300px;
+    position: relative;
+}
+
+/* Tables */
+.table-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #ffffff;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.data-table th {
+    background-color: #f1f3f5;
+    font-weight: 600;
+    color: #495057;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.data-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Correlation Controls */
+.correlation-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    gap: 15px;
+}
+
+.correlation-controls div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.correlation-controls label {
+    white-space: nowrap;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 1200px) {
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+
+    .controls {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .server-info {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .tabs {
+        flex-wrap: wrap;
+    }
+
+    .tab-button {
+        flex-basis: auto;
+    }
+
+    .correlation-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* Accessibility and Print Styles */
+@media print {
+    body {
+        background-color: white;
+    }
+
+    .controls, .tabs {
+        display: none;
+    }
+
+    .chart-wrapper {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
+
+/* Dark Mode (Optional - can be expanded) */
+@media (prefers-color-scheme: light) {
+    body {
+        background-color: #121212;
+        color: #e0e0e0;
+    }
+
+    header, .controls, .tab-container, .chart-wrapper {
+        background-color: #1e1e1e;
+        color: #e0e0e0;
+    }
+
+    .info-item {
+        background-color: #2c2c2c;
+    }
+
+    .data-table {
+        background-color: #1e1e1e;
+    }
+
+    .data-table th {
+        background-color: #2c2c2c;
+        color: #e0e0e0;
+    }
+
+    .data-table tr:hover {
+        background-color: #2c2c2c;
+    }
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+.error {
+    color: #dc3545;
+    background-color: #f8d7da;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+/* Loading Spinner */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

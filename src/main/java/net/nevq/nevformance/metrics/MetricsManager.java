@@ -9,15 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.management.OperatingSystemMXBean;
-import java.lang.management.ThreadMXBean;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+
+import net.nevq.nevformance.metrics.collectors.*;
 
 public class MetricsManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("nevformance");
@@ -29,15 +27,21 @@ public class MetricsManager {
     private MinecraftServer server;
     private boolean isCollecting = false;
 
-    // System resources for monitoring
-    private final OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
-    private final MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
-    private final ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+    // Specialized collectors
+    private final EntityMetricsCollector entityCollector;
+    private final WorldMetricsCollector worldCollector;
+    private final SystemMetricsCollector systemCollector;
 
     public MetricsManager() {
-        // Initialize default metric collectors
-        collectors.add(new ServerMetricsCollector());
-        collectors.add(new WorldMetricsCollector());
+        // Initialize specialized metric collectors
+        entityCollector = new EntityMetricsCollector();
+        worldCollector = new WorldMetricsCollector();
+        systemCollector = new SystemMetricsCollector();
+
+        // Add all collectors to the main list
+        collectors.add(entityCollector);
+        collectors.add(worldCollector);
+        collectors.add(systemCollector);
 
         // Initialize metric buffers
         initializeMetricBuffers();
@@ -47,16 +51,47 @@ public class MetricsManager {
         int historySize = Nevformance.getInstance().getConfigManager().getMetricsHistorySize();
 
         // Server-wide metrics
-        metricBuffers.put("tps", new CircularMetricBuffer(historySize));
-        metricBuffers.put("mspt", new CircularMetricBuffer(historySize));
-        metricBuffers.put("memory.used", new CircularMetricBuffer(historySize));
-        metricBuffers.put("memory.max", new CircularMetricBuffer(historySize));
+        metricBuffers.put("server.tps", new CircularMetricBuffer(historySize));
+        metricBuffers.put("server.tick_time", new CircularMetricBuffer(historySize));
+        metricBuffers.put("server.tick_time.mean", new CircularMetricBuffer(historySize));
+        metricBuffers.put("server.tick_time.std_dev", new CircularMetricBuffer(historySize));
+        metricBuffers.put("server.tick_time.median", new CircularMetricBuffer(historySize));
+        metricBuffers.put("server.tick_time.p95", new CircularMetricBuffer(historySize));
+        metricBuffers.put("server.tick_time.p99", new CircularMetricBuffer(historySize));
+
+        // Memory metrics
+        metricBuffers.put("memory.heap.used", new CircularMetricBuffer(historySize));
+        metricBuffers.put("memory.heap.committed", new CircularMetricBuffer(historySize));
+        metricBuffers.put("memory.heap.max", new CircularMetricBuffer(historySize));
+        metricBuffers.put("memory.nonheap.used", new CircularMetricBuffer(historySize));
+        metricBuffers.put("memory.heap.utilization", new CircularMetricBuffer(historySize));
+
+        // CPU metrics
         metricBuffers.put("cpu.system", new CircularMetricBuffer(historySize));
         metricBuffers.put("cpu.process", new CircularMetricBuffer(historySize));
-        metricBuffers.put("entities.total", new CircularMetricBuffer(historySize));
-        metricBuffers.put("chunks.loaded", new CircularMetricBuffer(historySize));
 
-        // We'll add more specific metrics as needed
+        // Entity metrics
+        metricBuffers.put("entities.total", new CircularMetricBuffer(historySize));
+        metricBuffers.put("entities.living", new CircularMetricBuffer(historySize));
+        metricBuffers.put("entities.hostile", new CircularMetricBuffer(historySize));
+        metricBuffers.put("entities.passive", new CircularMetricBuffer(historySize));
+
+        // Chunk metrics
+        metricBuffers.put("chunks.loaded", new CircularMetricBuffer(historySize));
+        metricBuffers.put("chunks.load_rate", new CircularMetricBuffer(historySize));
+        metricBuffers.put("chunks.unload_rate", new CircularMetricBuffer(historySize));
+
+        // GC metrics
+        metricBuffers.put("gc.young.rate", new CircularMetricBuffer(historySize));
+        metricBuffers.put("gc.old.rate", new CircularMetricBuffer(historySize));
+
+        // Thread metrics
+        metricBuffers.put("threads.active", new CircularMetricBuffer(historySize));
+
+        // Lag spike metrics
+        metricBuffers.put("server.lag_spikes.current", new CircularMetricBuffer(historySize));
+        metricBuffers.put("server.lag_spikes.count_10s", new CircularMetricBuffer(historySize));
+        metricBuffers.put("server.lag_spikes.count_60s", new CircularMetricBuffer(historySize));
     }
 
     public void startCollection(MinecraftServer server) {
@@ -96,8 +131,9 @@ public class MetricsManager {
         try {
             long timestamp = System.currentTimeMillis();
 
+            // Remove call to GlobalMetrics
             // Collect global metrics
-            collectGlobalMetrics(timestamp);
+            // collectGlobalMetrics(timestamp);
 
             // Let each collector gather its metrics
             for (MetricCollector collector : collectors) {
@@ -112,61 +148,6 @@ public class MetricsManager {
         } catch (Exception e) {
             LOGGER.error("Error collecting metrics", e);
         }
-    }
-
-    private void collectGlobalMetrics(long timestamp) {
-        // TPS calculation
-        double tps = calculateTPS();
-        recordMetric("tps", timestamp, tps);
-
-        // MSPT (Milliseconds per tick)
-        double mspt = calculateMSPT();
-        recordMetric("mspt", timestamp, mspt);
-
-        // Memory usage
-        long usedMemory = memoryBean.getHeapMemoryUsage().getUsed() / (1024 * 1024); // MB
-        long maxMemory = memoryBean.getHeapMemoryUsage().getMax() / (1024 * 1024); // MB
-        recordMetric("memory.used", timestamp, usedMemory);
-        recordMetric("memory.max", timestamp, maxMemory);
-
-        // CPU usage (if available)
-        if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
-            com.sun.management.OperatingSystemMXBean sunOsBean = (com.sun.management.OperatingSystemMXBean) osBean;
-            double systemCpuLoad = sunOsBean.getCpuLoad() * 100.0; // Convert to percentage
-            double processCpuLoad = sunOsBean.getProcessCpuLoad() * 100.0; // Convert to percentage
-
-            recordMetric("cpu.system", timestamp, systemCpuLoad);
-            recordMetric("cpu.process", timestamp, processCpuLoad);
-        }
-
-        // Entity count - using a version-compatible approach
-        int totalEntities = 0;
-        for (ServerWorld world : server.getWorlds()) {
-            // Count entities by iterating through entity lists
-            // This is less efficient but more compatible across versions
-            final AtomicInteger totalEntitiesAtomic = new AtomicInteger(totalEntities);
-            world.iterateEntities().forEach(entity -> totalEntitiesAtomic.incrementAndGet());
-            totalEntities = totalEntitiesAtomic.get();
-        }
-        recordMetric("entities.total", timestamp, totalEntities);
-
-        // Loaded chunks
-        int loadedChunks = 0;
-        for (ServerWorld world : server.getWorlds()) {
-            loadedChunks += world.getChunkManager().getLoadedChunkCount();
-        }
-        recordMetric("chunks.loaded", timestamp, loadedChunks);
-    }
-
-    private double calculateTPS() {
-        // This is an approximation and may need adjustment based on how Minecraft reports tick rates
-        double meanTickTime = server.getAverageTickTime();
-        double tps = 1000.0 / Math.max(meanTickTime, 50.0); // Capped at 20 TPS
-        return Math.min(20.0, tps);
-    }
-
-    private double calculateMSPT() {
-        return server.getAverageTickTime();
     }
 
     public void recordMetric(String metricName, long timestamp, double value) {
@@ -196,84 +177,47 @@ public class MetricsManager {
         return buffer != null ? buffer.getPoints() : Collections.emptyList();
     }
 
-    // Inner classes for metric collectors
+    public Map<String, List<MetricPoint>> getMetricsByPrefix(String prefix) {
+        Map<String, List<MetricPoint>> result = new HashMap<>();
 
-    public interface MetricCollector {
-        void collect(MetricsManager manager, MinecraftServer server, long timestamp);
-    }
-
-    private static class ServerMetricsCollector implements MetricCollector {
-        @Override
-        public void collect(MetricsManager manager, MinecraftServer server, long timestamp) {
-            // Additional server-wide metrics can be collected here
-            // These are more advanced metrics beyond the basics in collectGlobalMetrics
-
-            // For example, network IO metrics, thread stats, etc.
-            ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-            int threadCount = threadBean.getThreadCount();
-            int peakThreadCount = threadBean.getPeakThreadCount();
-
-            manager.recordMetric("threads.current", timestamp, threadCount);
-            manager.recordMetric("threads.peak", timestamp, peakThreadCount);
-        }
-    }
-
-    private static class WorldMetricsCollector implements MetricCollector {
-        @Override
-        public void collect(MetricsManager manager, MinecraftServer server, long timestamp) {
-            // Collect per-dimension metrics
-            for (ServerWorld world : server.getWorlds()) {
-                String dimensionKey = world.getRegistryKey().getValue().toString().replace(":", ".");
-                String prefix = "world." + dimensionKey;
-
-                // Entity counts per dimension - using a compatible approach
-                final int[] entityCount = {0};
-                world.iterateEntities().forEach(entity -> entityCount[0]++);
-                manager.recordMetric(prefix + ".entities", timestamp, entityCount[0]);
-
-                // Chunk counts
-                int loadedChunks = world.getChunkManager().getLoadedChunkCount();
-                manager.recordMetric(prefix + ".chunks", timestamp, loadedChunks);
-
-                // More detailed metrics can be added here
-
-                // If enabled, collect chunk-specific metrics
-                if (Nevformance.getInstance().getConfigManager().isCollectChunkMetrics()) {
-                    collectChunkMetrics(manager, world, timestamp);
-                }
+        for (Map.Entry<String, CircularMetricBuffer> entry : metricBuffers.entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                result.put(entry.getKey(), entry.getValue().getPoints());
             }
         }
 
-        private void collectChunkMetrics(MetricsManager manager, ServerWorld world, long timestamp) {
-            // This can be computationally expensive, so we might want to sample
-            // rather than collecting data for every chunk
+        return result;
+    }
 
-            // Get active chunks (could be optimized/sampled in a production environment)
-            String dimensionKey = world.getRegistryKey().getValue().toString().replace(":", ".");
-            //Map<ChunkPos, Integer> entityCountsPerChunk = new HashMap<>();
+    /**
+     * Gets a set of all available metric names
+     * @return Set of metric names
+     */
+    public Set<String> getAvailableMetrics() {
+        return new HashSet<>(metricBuffers.keySet());
+    }
 
-            // Chunk analysis - using a more version-compatible approach
-            Map<ChunkPos, Integer> entityCountsPerChunk = new HashMap<>();
+    /**
+     * Gets the entity metrics collector
+     * @return EntityMetricsCollector instance
+     */
+    public EntityMetricsCollector getEntityCollector() {
+        return entityCollector;
+    }
 
-            // Count entities per chunk - this is a simplification
-            world.iterateEntities().forEach(entity -> {
-                ChunkPos chunkPos = new ChunkPos(entity.getBlockPos());
-                entityCountsPerChunk.merge(chunkPos, 1, Integer::sum);
-            });
+    /**
+     * Gets the world metrics collector
+     * @return WorldMetricsCollector instance
+     */
+    public WorldMetricsCollector getWorldCollector() {
+        return worldCollector;
+    }
 
-            // Record hotspots (chunks with many entities)
-            entityCountsPerChunk.entrySet().stream()
-                    .filter(entry -> entry.getValue() > 20) // Threshold for "many entities"
-                    .forEach(entry -> {
-                        ChunkPos pos = entry.getKey();
-                        String metricName = String.format(
-                                "hotspot.%s.chunk.%d.%d.entities",
-                                dimensionKey,
-                                pos.x,
-                                pos.z
-                        );
-                        manager.recordMetric(metricName, timestamp, entry.getValue());
-                    });
-        }
+    /**
+     * Gets the system metrics collector
+     * @return SystemMetricsCollector instance
+     */
+    public SystemMetricsCollector getSystemCollector() {
+        return systemCollector;
     }
 }
